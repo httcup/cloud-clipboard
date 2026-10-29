@@ -410,3 +410,19 @@ input:focus { border-color: var(--accent); }
   .nb-split[data-mv="read"] .nb-read { border-inline-end: 0; }
   .nb-actions .btn span.btn-t { display: none; }
 }
+
+/* 站点底部链接 */
+.site-footer {
+  text-align: center;
+  padding: 18px 16px 26px;
+  font-size: 13px;
+  color: #8a93a3;
+}
+.site-footer a {
+  color: #5b6472;
+  text-decoration: none;
+  border-bottom: 1px dashed #c8cfd9;
+  transition: color .15s ease, border-color .15s ease;
+}
+.site-footer a:hover { color: #2f6fed; border-bottom-color: #2f6fed; }
+.site-footer .sep { margin: 0 10px; color: #c8cfd9; }
