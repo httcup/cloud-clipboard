@@ -191,7 +191,7 @@ input:focus { border-color: var(--accent); }
 .nb-ghost:hover { border-color: var(--border); background: var(--surface); color: var(--accent); }
 
 /* 编辑区 */
-.nb-editor { display: grid; grid-template-rows: auto auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
+.nb-editor { display: grid; grid-template-rows: auto minmax(0, 1fr) auto; min-width: 0; min-height: 0; }
 .nb-bar {
   display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.7rem;
   padding: 0.6rem 0.85rem;
@@ -363,6 +363,7 @@ input:focus { border-color: var(--accent); }
 @media (max-width: 860px) {
   .tool-main { padding: 0; height: 100vh; }
   .nb-app { grid-template-columns: minmax(0, 1fr); border-radius: 0; border: 0; }
+  .nb-editor { grid-template-rows: auto auto minmax(0, 1fr) auto; }
   .nb-side {
     position: fixed; left: 0; top: 0; bottom: 0; width: 260px; z-index: 50;
     transform: translateX(-105%); transition: transform .2s ease;
