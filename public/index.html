@@ -1,16 +1,202 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>云便签 · Markdown 云端笔记本</title>
-  <meta name="description" content="免登录的云端 Markdown 笔记本：多页笔记、实时预览、截图粘贴、跨设备同步。" />
-  <link rel="stylesheet" href="/style.css" />
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>云便签 · 随手记同步到云</title>
+<meta name="description" content="免登录的云端 Markdown 笔记本：左边写、右边看，多页笔记、截图粘贴、跨设备同步。">
+<meta name="theme-color" content="#f6f7f9">
+<link rel="stylesheet" href="/style.css">
 </head>
 <body>
-  <main id="app" class="app"></main>
-  <script src="/vendor/qrcode.min.js"></script>
-  <script src="/app.js"></script>
-  <noscript>需要启用 JavaScript 才能使用云便签。</noscript>
+
+<!-- ============ 首页 ============ -->
+<section id="homeView" class="home" hidden>
+  <div class="card">
+    <h1>☁️ 云便签</h1>
+    <p class="sub">免登录的云端 Markdown 笔记本：多页笔记、实时预览、截图粘贴、跨设备同步。</p>
+    <div class="row">
+      <input id="homeName" type="text" placeholder="输入一个名字，如 demo" maxlength="64" autocomplete="off">
+      <button id="homeGo" class="btn btn-primary" type="button">打开笔记</button>
+    </div>
+    <div class="err" id="homeErr"></div>
+  </div>
+
+  <div class="card how-card">
+    <div class="how-cols">
+      <div class="how-left">
+        <h3>使用方法非常简单：</h3>
+        <ol>
+          <li>在上方输入一个您喜欢的名字（例如 <code>demo</code>），点击“打开笔记”。</li>
+          <li>或者直接在浏览器地址栏输入 <code>note.139t.cn/demo</code>。</li>
+          <li>您将进入笔记页面，在文本框中输入内容，内容会自动保存到云端。</li>
+          <li>在其他设备上访问相同的网址，即可看到您刚才输入的内容。</li>
+        </ol>
+      </div>
+      <div class="how-right">
+        <h4>URL 结构</h4>
+        <div class="url-demo">https://note.139t.cn/<b>您的名字</b></div>
+        <p>名字可以是字母、数字或中文。只要名字相同，就能进入同一个笔记空间。</p>
+      </div>
+    </div>
+    <p class="hint">支持 Markdown 实时预览、截图粘贴上传、分享二维码与访问密码。数据 30 天未更新自动清理，请勿存放敏感永久资料。</p>
+  </div>
+</section>
+
+<!-- ============ 解锁 ============ -->
+<section id="unlockView" class="home" hidden>
+  <div class="card">
+    <h1>🔒 加密笔记</h1>
+    <p class="sub">「<span id="unlockName"></span>」设置了访问密码</p>
+    <div class="row">
+      <input id="unlockPw" type="password" placeholder="请输入访问密码" autocomplete="off">
+      <button id="unlockGo" class="btn btn-primary" type="button">解锁</button>
+    </div>
+    <div class="err" id="unlockErr"></div>
+  </div>
+</section>
+
+<!-- ============ 笔记本（md 风格骨架） ============ -->
+<main id="nbView" class="tool-main" hidden>
+  <section class="nb-app" id="nbApp" aria-label="Markdown 笔记本">
+
+    <aside class="nb-side" aria-label="页面列表">
+      <div class="nb-side-head">
+        <button class="nb-new" id="newPage" type="button">
+          <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M12 5v14M5 12h14"/></svg>
+          新建页面
+        </button>
+        <label class="nb-search">
+          <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m16.2 16.2 4.3 4.3"/></svg>
+          <input id="q" type="search" placeholder="搜索标题或内容" aria-label="搜索页面" autocomplete="off">
+        </label>
+      </div>
+      <ul class="nb-notes" id="pageList"></ul>
+      <p class="nb-empty" id="pageEmpty" hidden>还没有匹配的页面</p>
+      <div class="nb-side-foot">
+        <button class="nb-ghost" id="importBtn" type="button">导入 .md</button>
+        <button class="nb-ghost" id="backupAll" type="button">备份全部</button>
+        <input id="importFile" type="file" accept=".md,.markdown,.txt" multiple hidden>
+      </div>
+    </aside>
+
+    <section class="nb-editor" aria-label="编辑与预览">
+      <div class="nb-bar">
+        <div class="nb-bar-toggles">
+          <button class="btn btn-icon" id="sideToggle" type="button" title="收起 / 展开左侧页面列表" aria-pressed="true">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 6h18M3 12h18M3 18h18"/></svg>
+          </button>
+          <button class="btn btn-prev" id="prevToggle" type="button" title="收起 / 展开右侧实时预览" aria-pressed="true">预览</button>
+        </div>
+        <input id="title" class="nb-title" placeholder="无标题页面" aria-label="页面标题" autocomplete="off" spellcheck="false">
+        <span class="nb-state" id="state">已加载</span>
+        <div class="nb-actions">
+          <button class="btn" id="shareBtn" type="button" title="分享与设置">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm5 0h2v2h-2v-2Zm-5 5h2v2h-2v-2Zm3 0h4v2h-4v-2Zm2-3h2v2h-2v-2Z"/></svg>
+            分享
+          </button>
+          <button class="btn btn-primary" id="download" type="button">
+            <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 3v12"/><path d="m7 11 5 5 5-5"/><path d="M4 21h16"/></svg>
+            下载 .md
+          </button>
+          <button class="btn" id="copy" type="button">复制</button>
+          <button class="btn btn-quiet" id="destroy" type="button">销毁</button>
+        </div>
+      </div>
+
+      <div class="nb-views" role="tablist" aria-label="视图切换">
+        <button class="nb-view is-on" type="button" data-view="write">编辑</button>
+        <button class="nb-view" type="button" data-view="read">预览</button>
+      </div>
+
+      <div class="nb-split" id="split">
+        <div class="nb-pane nb-write">
+          <div class="nb-tools" id="toolbar" role="toolbar" aria-label="Markdown 工具栏">
+            <button type="button" data-md="h2" title="二级标题">H2</button>
+            <button type="button" data-md="h3" title="三级标题">H3</button>
+            <span class="nb-sep" aria-hidden="true"></span>
+            <button type="button" data-md="bold" title="粗体（⌘/Ctrl + B）"><b>B</b></button>
+            <button type="button" data-md="italic" title="斜体"><i>I</i></button>
+            <button type="button" data-md="strike" title="删除线"><s>S</s></button>
+            <button type="button" data-md="code" title="行内代码">代码</button>
+            <span class="nb-sep" aria-hidden="true"></span>
+            <button type="button" data-md="ul" title="无序列表">列表</button>
+            <button type="button" data-md="ol" title="有序列表">编号</button>
+            <button type="button" data-md="task" title="待办清单">待办</button>
+            <button type="button" data-md="quote" title="引用">引用</button>
+            <span class="nb-sep" aria-hidden="true"></span>
+            <button type="button" data-md="link" title="链接">链接</button>
+            <button type="button" data-md="table" title="插入表格">表格</button>
+            <button type="button" data-md="codeblock" title="代码块">代码块</button>
+            <button type="button" data-md="hr" title="分割线">分割</button>
+            <span class="nb-sep" aria-hidden="true"></span>
+            <button type="button" id="captureBtn" title="截取屏幕/窗口并插入">📷 截屏</button>
+            <button type="button" id="imgBtn" title="插入图片文件">🖼 图片</button>
+          </div>
+          <textarea id="src" spellcheck="false" aria-label="Markdown 正文"
+            placeholder="在这里写点什么……&#10;&#10;支持 # 标题、**粗体**、- [ ] 待办、> 引用、| 表格 |、``` 代码块 ```&#10;&#10;可直接 Ctrl+V 粘贴截图，或把图片文件拖进来，自动上传云端。"></textarea>
+        </div>
+        <div class="nb-pane nb-read">
+          <article id="prev" class="nb-prev" aria-label="预览"></article>
+          <p class="nb-prev-empty" id="prevEmpty" hidden>还没有内容，随便写一句试试。</p>
+        </div>
+      </div>
+
+      <div class="nb-status">
+        <span id="stat">0 字 · 1 行</span>
+        <span class="nb-hint">⌘/Ctrl + S 立即保存 · 自动保存到云端 · 30 天未更新自动清理</span>
+      </div>
+    </section>
+  </section>
+
+  <!-- ============ 分享与设置弹窗 ============ -->
+  <div class="modal" id="shareModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="shareTitle">
+      <div class="modal-head">
+        <h2 id="shareTitle">分享与设置</h2>
+        <button class="btn btn-icon" id="shareClose" type="button" title="关闭">✕</button>
+      </div>
+
+      <p class="modal-label">他人可编辑</p>
+      <div class="seg" id="shareSeg">
+        <button type="button" class="on">编辑</button>
+        <button type="button">只读</button>
+      </div>
+
+      <p class="modal-label">分享链接（手机扫码打开）</p>
+      <div class="share-link">
+        <input id="shareUrl" type="text" readonly>
+        <button class="btn" id="shareCopy" type="button">复制</button>
+      </div>
+      <div class="qr" id="qrBox"></div>
+
+      <p class="modal-label">信息</p>
+      <div class="meta-rows">
+        <div class="row"><span class="k">阅读</span><span class="v"><span class="badge" id="mReads">0</span></span></div>
+        <div class="row"><span class="k">创建于</span><span class="v" id="mCreated">-</span></div>
+        <div class="row"><span class="k">更新于</span><span class="v" id="mUpdated">-</span></div>
+        <div class="row"><span class="k">过期时间</span><span class="v" id="mExpiry">-</span></div>
+      </div>
+
+      <p class="modal-label">访问密码</p>
+      <div class="share-link">
+        <input id="pwSet" type="password" placeholder="设置/修改密码（留空并保存 = 清除）" autocomplete="new-password">
+        <button class="btn" id="pwSave" type="button">保存</button>
+      </div>
+
+      <div class="modal-foot">
+        <button class="btn" id="shareDone" type="button">完成</button>
+      </div>
+    </div>
+  </div>
+</main>
+
+<p class="nb-toast" id="toast" hidden></p>
+
+<div class="drop-mask" id="dropMask" hidden>松开以插入图片</div>
+
+<script src="/vendor/qrcode.min.js"></script>
+<script src="/app.js"></script>
+<noscript>需要启用 JavaScript 才能使用云便签。</noscript>
 </body>
 </html>
