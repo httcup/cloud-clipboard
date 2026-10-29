@@ -8,6 +8,8 @@
     for (const [k, v] of Object.entries(attrs)) {
       if (k === "class") node.className = v;
       else if (k === "text") node.textContent = v;
+      else if (k.startsWith("on") && typeof v === "function")
+        node.addEventListener(k.slice(2).toLowerCase(), v);
       else node.setAttribute(k, v);
     }
     (Array.isArray(children) ? children : [children]).forEach((c) => c && node.appendChild(c));
