@@ -1,5 +1,6 @@
 {
   "devDependencies": {
+    "jsdom": "^30.1.3",
     "wrangler": "^4.155.0"
   }
 }
