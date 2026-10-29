@@ -75,11 +75,12 @@ check("预览渲染 H1", document.querySelector(".nb-prev h1")?.textContent === 
 check("预览渲染待办", !!document.querySelector(".nb-prev ul.todo li.task-done"));
 check("状态栏字数统计", $("stat").textContent.includes("字"));
 
-// 预览开关
+// 预览开关（默认关闭）
+check("预览默认关闭", $("split").classList.contains("prev-hidden"));
 $("prevToggle").click();
-check("预览开关：关闭后进入纯编辑", $("split").classList.contains("prev-hidden"));
+check("预览开关：点击展开", !$("split").classList.contains("prev-hidden"));
 $("prevToggle").click();
-check("预览开关：重新展开", !$("split").classList.contains("prev-hidden"));
+check("预览开关：再点关闭", $("split").classList.contains("prev-hidden"));
 
 // 工具栏加粗
 ta.selectionStart = ta.value.indexOf("加粗");

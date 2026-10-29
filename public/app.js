@@ -16,7 +16,7 @@
     readOnly: false, forceView: new URLSearchParams(location.search).has("view"),
     hasPassword: false,
     meta: { createdAt: 0, updatedAt: 0, reads: 0, imgIds: [] },
-    side: true, prev: true, mview: "write",
+    side: true, prev: false, mview: "write",
     search: "", saveTimer: null, uploading: 0,
     dirty: false, storageWarned: false, exists: false, remotePending: false,
   };
@@ -202,26 +202,38 @@
     p.content = [
       "# 👋 欢迎使用云便签",
       "",
-      "这是一个**免登录的云端 Markdown 笔记本**，左边写、右边看，内容自动保存到云端。",
+      "这是一个**免登录的云端 Markdown 笔记本**。左边写，右边就是最终的样子；每敲一句都会自动保存到云端，关掉页面再回来还在，换台设备访问同一网址也还在。",
       "",
-      "## 使用说明",
+      "## 可以这么用",
       "",
-      "- **多页笔记**：左侧「新建页面」添加页，顶部标题可直接点击修改",
-      "- **Markdown**：支持 # 标题、**粗体**、- [ ] 待办、> 引用、| 表格 |、``` 代码块```",
-      "- **实时预览**：右上「预览」按钮可收起/展开右侧预览",
-      "- **截图**：工具栏 📷 截屏 / 直接 Ctrl+V 粘贴截图 / 拖拽图片文件进来",
-      "- **分享**：顶部「分享」可生成链接和二维码，手机扫码即开",
-      "- **快捷键**：⌘/Ctrl + B 粗体、+ K 链接、+ S 立即保存",
-      "- **回收站**：删除的页面在左侧「回收站」保留 30 天，可恢复",
-      "- **备份**：左下角可导出 .md 或 JSON（JSON 可完整还原）",
+      "- [ ] 记待办，导出 .md 丢进仓库",
+      "- [ ] 写草稿，写完再粘到别处",
+      "- [x] 试试顶栏的「下载 .md」",
+      "- [ ] 手机扫码分享给朋友（顶栏「分享」）",
+      "- [ ] 直接粘贴截图或拖拽图片进来",
+      "",
+      "## 语法速查",
+      "",
+      "| 想要 | 写法 |",
+      "| --- | --- |",
+      "| 标题 | `# 一级标题` |",
+      "| 粗体 | `**粗体**` |",
+      "| 列表 | `- 项目` |",
+      "| 引用 | `> 引用` |",
+      "| 链接 | `[名字](https://example.com)` |",
+      "",
+      "> 「下载 .md」把当前页面存成文件，「备份 .md / 备份 JSON」把所有页面合成一份；删除的页面会进「回收站」，30 天内可恢复。",
+      "",
+      "```js",
+      "// 代码块原样保留",
+      "const hello = '你好';",
+      "```",
       "",
       "## 注意事项",
       "",
       "1. 数据 **30 天未更新会自动清理**，重要内容请定期备份",
       "2. 请勿存放敏感信息（密码、密钥等），本工具无账号体系，链接即权限",
       "3. 设置访问密码后，新设备需输入密码才能编辑",
-      "",
-      "> 把浏览器地址栏里你的笔记名字记下来，任何设备访问同一网址就能看到这份笔记。",
     ].join("\n");
     return p;
   }
@@ -262,11 +274,15 @@
       else app.classList.toggle("side-hidden", !S.side);
     });
 
-    // 预览开关（桌面）
+    // 预览开关（桌面）—— 默认关闭，用户选择记住在本机
+    try { S.prev = localStorage.getItem("cn-prev") === "1"; } catch (e) { S.prev = false; }
+    $("prevToggle").setAttribute("aria-pressed", String(S.prev));
+    $("split").classList.toggle("prev-hidden", !S.prev);
     $("prevToggle").addEventListener("click", function () {
       S.prev = !S.prev;
       this.setAttribute("aria-pressed", String(S.prev));
       $("split").classList.toggle("prev-hidden", !S.prev);
+      try { localStorage.setItem("cn-prev", S.prev ? "1" : "0"); } catch (e) { /* 隐身模式等 */ }
     });
 
     // 移动端 编辑/预览
