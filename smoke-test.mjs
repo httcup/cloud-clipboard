@@ -106,21 +106,102 @@ q.dispatchEvent(new window.Event("input", { bubbles: true }));
 await sleep(300);
 check("删除后回到一个页面", document.querySelectorAll(".nb-notes li").length === 1);
 
-// 分享弹窗 + 只读切换
+// 分享弹窗（无只读切换，链接一律可编辑）
 $("shareBtn").click();
 check("分享弹窗打开", !$("shareModal").hidden);
 check("分享链接正确", $("shareUrl").value.includes(`/${NAME}`));
-document.querySelector("#shareSeg button:nth-child(2)").click(); // 只读
-await sleep(1200);
-remote = await getRemote();
-check("只读模式已保存到云端", remote.readOnly === true);
-check("链接带 view=1", $("shareUrl").value.includes("?view=1"));
-check("正文变只读", $("src").readOnly === true);
-document.querySelector("#shareSeg button:nth-child(1)").click(); // 编辑
-await sleep(1200);
-remote = await getRemote();
-check("切回可编辑", remote.readOnly === false && !$("src").readOnly);
+check("分享链接不含 view=1", !$("shareUrl").value.includes("view=1"));
+check("分享弹窗无编辑/只读切换", !$("shareSeg"));
 $("shareDone").click();
+
+// 新笔记本默认欢迎页（用全新名字验证）
+const WNAME = "smoke-welcome";
+const wdom = await JSDOM.fromFile(path.join(ROOT, "public/index.html"), {
+  url: `${BASE}/${WNAME}`,
+  runScripts: "dangerously",
+  resources: "usable",
+  pretendToBeVisual: true,
+  virtualConsole: vc,
+  beforeParse(w2) {
+    w2.fetch = (input, init) => {
+      const url = typeof input === "string" ? (input.startsWith("http") ? input : BASE + input) : input.url;
+      return fetch(url, init);
+    };
+    w2.confirm = () => true;
+    w2.URL.createObjectURL = () => "blob:x";
+    w2.URL.revokeObjectURL = () => {};
+    w2.HTMLCanvasElement.prototype.getContext = () => null;
+  },
+});
+await new Promise((r) => wdom.window.addEventListener("load", r));
+await sleep(900);
+check("新笔记本默认欢迎页", wdom.window.document.getElementById("title").value === "欢迎使用云便签");
+check("欢迎页含注意事项", wdom.window.document.getElementById("src").value.includes("注意事项"));
+await fetch(`${BASE}/api/note/${WNAME}`, { method: "DELETE" });
+
+// 回收站：软删除 + 恢复 + 彻底删除
+const beforeCount = document.querySelectorAll(".nb-notes li").length;
+const trashBefore = ((await getRemote()).trash || []).length;
+[...document.querySelectorAll(".nb-notes li")][0].querySelector(".note-del").click();
+await sleep(1200);
+remote = await getRemote();
+check("删除后进回收站（云端 trash +1）", (remote.trash || []).length === trashBefore + 1);
+check("删除后仍有页面（自动补新页）", document.querySelectorAll(".nb-notes li").length >= 1);
+check("回收站角标数量正确", !$("trashCount").hidden && $("trashCount").textContent === String(trashBefore + 1));
+check("状态栏显示存储占用", $("stat").textContent.includes("存储"));
+$("trashBtn").click();
+check("回收站弹窗打开", !$("trashModal").hidden);
+check("回收站列表数量正确", $("trashList").children.length === trashBefore + 1);
+$("trashList").children[0].querySelector(".btn").click(); // 恢复
+await sleep(900);
+remote = await getRemote();
+check("恢复后 trash 回到基准", (remote.trash || []).length === trashBefore);
+check("恢复后页面数 +1", document.querySelectorAll(".nb-notes li").length === beforeCount + 1);
+// 再删一次然后彻底删除
+[...document.querySelectorAll(".nb-notes li")][0].querySelector(".note-del").click();
+await sleep(900);
+$("trashBtn").click();
+$("trashList").children[0].querySelectorAll(".btn")[1].click(); // 彻底删除
+await sleep(900);
+remote = await getRemote();
+check("彻底删除后 trash 回到基准", (remote.trash || []).length === trashBefore);
+$("trashDone").click();
+
+// 置顶
+$("pinBtn").click();
+await sleep(900);
+remote = await getRemote();
+check("置顶已保存到云端", remote.pages.some((p) => p.pinned === true));
+check("置顶按钮状态", $("pinBtn").getAttribute("aria-pressed") === "true");
+$("pinBtn").click();
+await sleep(900);
+remote = await getRemote();
+check("取消置顶", remote.pages.every((p) => !p.pinned));
+
+// 回车续列表 + Tab 缩进
+ta.value = "- 项目甲";
+ta.selectionStart = ta.selectionEnd = ta.value.length;
+ta.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+check("回车续无序列表", $("src").value === "- 项目甲\n- ");
+ta.value = "1. 第一项";
+ta.selectionStart = ta.selectionEnd = ta.value.length;
+ta.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+check("回车续有序列表自动加一", $("src").value === "1. 第一项\n2. ");
+ta.value = "- [ ] 待办甲";
+ta.selectionStart = ta.selectionEnd = ta.value.length;
+ta.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+check("回车续待办列表", $("src").value === "- [ ] 待办甲\n- [ ] ");
+ta.value = "- ";
+ta.selectionStart = ta.selectionEnd = ta.value.length;
+ta.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Enter", bubbles: true, cancelable: true }));
+check("空列表项回车退出列表", $("src").value === "");
+ta.value = "- 甲\n- 乙";
+ta.selectionStart = 0; ta.selectionEnd = ta.value.length;
+ta.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", bubbles: true, cancelable: true }));
+check("多行 Tab 整块缩进", $("src").value === "  - 甲\n  - 乙");
+ta.dispatchEvent(new window.KeyboardEvent("keydown", { key: "Tab", shiftKey: true, bubbles: true, cancelable: true }));
+check("Shift+Tab 整块反缩进", $("src").value === "- 甲\n- 乙");
+await sleep(1100);
 
 // 图片上传
 const png = Buffer.from("iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==", "base64");

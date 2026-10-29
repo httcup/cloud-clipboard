@@ -72,6 +72,7 @@ input:focus { border-color: var(--accent); }
 .err { color: var(--danger); font-size: 0.82rem; margin-top: 0.5rem; min-height: 1.2em; }
 .hint { color: var(--text-dim); font-size: 0.78rem; margin-top: 1rem; }
 .hint code { background: var(--surface-2); border-radius: 4px; padding: 1px 6px; }
+.back-row { margin: 14px 0 0; text-align: center; }
 
 /* ---------- 首页 / 解锁 ---------- */
 .home { max-width: 720px; margin: 10vh auto 0; padding: 0 20px; }
@@ -308,6 +309,38 @@ input:focus { border-color: var(--accent); }
   border-top: 1px solid var(--border);
   color: var(--text-dim); font-size: 0.74rem; font-variant-numeric: tabular-nums;
 }
+#stat.warn { color: #b45309; font-weight: 600; }
+#stat.full { color: var(--danger); font-weight: 700; }
+
+/* 顶栏过期时间徽标（醒目） */
+.nb-expiry {
+  flex: none; margin-left: 0.4rem; padding: 0.12rem 0.5rem;
+  border-radius: 999px; font-size: 0.72rem; font-weight: 700;
+  color: #b45309; background: rgb(245 158 11 / 14%);
+  border: 1px solid rgb(245 158 11 / 40%); white-space: nowrap;
+}
+@media (prefers-color-scheme: dark) {
+  .nb-expiry { color: #fbbf24; background: rgb(245 158 11 / 18%); border-color: rgb(245 158 11 / 45%); }
+}
+
+/* 置顶按钮 */
+#pinBtn { min-height: 30px; }
+#pinBtn[aria-pressed="true"] { border-color: var(--accent); color: var(--accent); background: color-mix(in srgb, var(--accent) 10%, transparent); }
+
+/* 回收站 */
+.nb-ghost { position: relative; }
+.trash-badge {
+  position: absolute; top: -6px; right: -6px; min-width: 16px; height: 16px;
+  padding: 0 4px; border-radius: 999px; background: var(--danger); color: #fff;
+  font-size: 0.62rem; font-weight: 700; line-height: 16px; text-align: center;
+}
+.trash-list { list-style: none; margin: 0; padding: 0; max-height: 46vh; overflow-y: auto; }
+.trash-list li {
+  display: flex; align-items: center; gap: 8px;
+  padding: 0.45rem 0.2rem; border-bottom: 1px solid var(--border); font-size: 0.84rem;
+}
+.trash-list .t-name { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.trash-list .t-time { color: var(--text-dim); font-size: 0.72rem; flex: none; }
 
 /* 弹窗 */
 .modal {

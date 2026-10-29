@@ -12,11 +12,13 @@
   var S = {
     name: "", pw: "",
     pages: [], cur: null,
+    trash: [],
     readOnly: false, forceView: new URLSearchParams(location.search).has("view"),
     hasPassword: false,
     meta: { createdAt: 0, updatedAt: 0, reads: 0, imgIds: [] },
     side: true, prev: true, mview: "write",
     search: "", saveTimer: null, uploading: 0,
+    dirty: false, storageWarned: false, exists: false, remotePending: false,
   };
 
   /* ---------- 小工具 ---------- */
@@ -189,13 +191,46 @@
     }
     $("unlockGo").addEventListener("click", go);
     pw.addEventListener("keydown", function (e) { if (e.key === "Enter") go(); });
+    $("unlockHome").addEventListener("click", function () { location.href = "/"; });
     pw.focus();
   }
 
   /* ---------- 笔记本 ---------- */
+  function welcomePage() {
+    var p = mkPage();
+    p.title = "欢迎使用云便签";
+    p.content = [
+      "# 👋 欢迎使用云便签",
+      "",
+      "这是一个**免登录的云端 Markdown 笔记本**，左边写、右边看，内容自动保存到云端。",
+      "",
+      "## 使用说明",
+      "",
+      "- **多页笔记**：左侧「新建页面」添加页，顶部标题可直接点击修改",
+      "- **Markdown**：支持 # 标题、**粗体**、- [ ] 待办、> 引用、| 表格 |、``` 代码块```",
+      "- **实时预览**：右上「预览」按钮可收起/展开右侧预览",
+      "- **截图**：工具栏 📷 截屏 / 直接 Ctrl+V 粘贴截图 / 拖拽图片文件进来",
+      "- **分享**：顶部「分享」可生成链接和二维码，手机扫码即开",
+      "- **快捷键**：⌘/Ctrl + B 粗体、+ K 链接、+ S 立即保存",
+      "- **回收站**：删除的页面在左侧「回收站」保留 30 天，可恢复",
+      "- **备份**：左下角可导出 .md 或 JSON（JSON 可完整还原）",
+      "",
+      "## 注意事项",
+      "",
+      "1. 数据 **30 天未更新会自动清理**，重要内容请定期备份",
+      "2. 请勿存放敏感信息（密码、密钥等），本工具无账号体系，链接即权限",
+      "3. 设置访问密码后，新设备需输入密码才能编辑",
+      "",
+      "> 把浏览器地址栏里你的笔记名字记下来，任何设备访问同一网址就能看到这份笔记。",
+    ].join("\n");
+    return p;
+  }
+
   function enterNotebook(r) {
     S.pages = r.pages || [];
-    if (!S.pages.length) S.pages.push(mkPage());
+    S.trash = r.trash || [];
+    S.exists = !!r.exists;
+    if (!S.pages.length) S.pages.push(S.exists ? mkPage() : welcomePage());
     S.readOnly = !!r.readOnly || S.forceView;
     S.hasPassword = !!r.hasPassword;
     S.meta = r.meta || { createdAt: Date.now(), updatedAt: Date.now(), reads: 0, imgIds: [] };
@@ -248,6 +283,7 @@
       var p = cur(); if (!p) return;
       p.title = this.value;
       p.updatedAt = Date.now();
+      S.dirty = true;
       renderList();
       updateDocTitle();
       scheduleSave();
@@ -259,6 +295,7 @@
       var p = cur(); if (!p) return;
       p.content = this.value;
       p.updatedAt = Date.now();
+      S.dirty = true;
       renderPreview();
       refreshStat();
       scheduleSave();
@@ -268,6 +305,8 @@
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "i") { e.preventDefault(); doMD("italic"); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "k") { e.preventDefault(); doMD("link"); }
       if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "s") { e.preventDefault(); saveNow(); }
+      if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) { enterContinue(e, src); }
+      if (e.key === "Tab") { e.preventDefault(); tabIndent(src, e.shiftKey); }
     });
 
     // 工具栏
@@ -281,21 +320,30 @@
     $("importBtn").addEventListener("click", function () { $("importFile").click(); });
     $("importFile").addEventListener("change", importFiles);
     $("backupAll").addEventListener("click", backupAll);
+    $("backupJson").addEventListener("click", backupJson);
+    $("trashBtn").addEventListener("click", openTrash);
+    $("trashClose").addEventListener("click", function () { $("trashModal").hidden = true; });
+    $("trashDone").addEventListener("click", function () { $("trashModal").hidden = true; });
+    $("trashModal").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
+    $("trashClear").addEventListener("click", function () {
+      if (!S.trash.length) { toast("回收站是空的"); return; }
+      if (!confirm("清空回收站？删除的页面将无法恢复。")) return;
+      S.trash = [];
+      renderTrash(); renderList(); scheduleSave();
+      toast("回收站已清空");
+    });
 
     // 顶栏
     $("download").addEventListener("click", downloadPage);
     $("copy").addEventListener("click", function () { copyText($("src").value); });
     $("destroy").addEventListener("click", destroyNotebook);
     $("shareBtn").addEventListener("click", openShare);
+    $("pinBtn").addEventListener("click", togglePin);
     $("shareClose").addEventListener("click", function () { $("shareModal").hidden = true; });
     $("shareDone").addEventListener("click", function () { $("shareModal").hidden = true; });
     $("shareModal").addEventListener("click", function (e) { if (e.target === this) this.hidden = true; });
     $("shareCopy").addEventListener("click", function () { copyText($("shareUrl").value); });
     $("pwSave").addEventListener("click", applyPassword);
-
-    $("shareSeg").querySelectorAll("button").forEach(function (b, i) {
-      b.addEventListener("click", function () { setShareMode(i === 1); });
-    });
 
     // 截图/图片
     $("captureBtn").addEventListener("click", captureScreen);
@@ -325,7 +373,10 @@
     var kw = S.search.trim().toLowerCase();
     var list = $("pageList");
     list.innerHTML = "";
-    var sorted = S.pages.slice().sort(function (a, b) { return b.updatedAt - a.updatedAt; });
+    var sorted = S.pages.slice().sort(function (a, b) {
+      if (!!b.pinned !== !!a.pinned) return b.pinned ? 1 : -1;
+      return b.updatedAt - a.updatedAt;
+    });
     var any = false;
     sorted.forEach(function (p) {
       if (kw && (p.title + " " + p.content).toLowerCase().indexOf(kw) < 0) return;
@@ -335,14 +386,23 @@
           class: "nb-note", "aria-current": String(p.id === S.cur),
           onclick: function () { switchPage(p.id); },
         }, [
-          el("span", { class: "nb-note-t", text: pageTitle(p) }),
+          el("span", { class: "nb-note-t", text: (p.pinned ? "📌 " : "") + pageTitle(p) }),
           el("span", { class: "nb-note-m", text: relTime(p.updatedAt) }),
         ]),
-        el("button", { class: "note-del", title: "删除此页", text: "✕", onclick: function (e) { e.stopPropagation(); deletePage(p.id); } }),
+        el("button", { class: "note-del", title: "移入回收站", text: "✕", onclick: function (e) { e.stopPropagation(); deletePage(p.id); } }),
       ]);
+      li.addEventListener("contextmenu", function (e) { e.preventDefault(); duplicatePage(p.id); });
       list.appendChild(li);
     });
     $("pageEmpty").hidden = any;
+    refreshTrashBadge();
+  }
+
+  function refreshTrashBadge() {
+    var n = S.trash.length;
+    var b = $("trashCount");
+    b.textContent = n > 99 ? "99+" : String(n);
+    b.hidden = !n;
   }
 
   function switchPage(id) {
@@ -358,6 +418,7 @@
     renderPreview();
     refreshStat();
     updateDocTitle();
+    refreshPinBtn();
     applyRo();
   }
 
@@ -377,11 +438,75 @@
   }
 
   function deletePage(id) {
-    if (S.pages.length <= 1) { toast("至少保留一个页面"); return; }
-    if (!confirm("删除这个页面？")) return;
-    S.pages = S.pages.filter(function (p) { return p.id !== id; });
+    var p = null;
+    S.pages = S.pages.filter(function (x) {
+      if (x.id === id) { p = x; return false; }
+      return true;
+    });
+    if (!p) return;
+    if (p.pinned) p.pinned = false;
+    p.deletedAt = Date.now();
+    S.trash.unshift(p);
+    if (!S.pages.length) S.pages.push(mkPage());
     if (S.cur === id) S.cur = S.pages[0].id;
     renderList(); loadPage(); scheduleSave();
+    toast("已移入回收站，30 天内可恢复");
+  }
+
+  function duplicatePage(id) {
+    var src = null;
+    S.pages.forEach(function (p) { if (p.id === id) src = p; });
+    if (!src) return;
+    var copy = mkPage();
+    copy.title = (src.title ? src.title + " 副本" : "副本");
+    copy.content = src.content;
+    copy.createdAt = Date.now();
+    copy.updatedAt = Date.now();
+    S.pages.push(copy);
+    S.cur = copy.id;
+    renderList(); loadPage(); scheduleSave();
+    toast("已复制一份副本");
+  }
+
+  /* ---------- 回收站 ---------- */
+  function renderTrash() {
+    var ul = $("trashList");
+    ul.innerHTML = "";
+    $("trashEmpty").hidden = !!S.trash.length;
+    S.trash.forEach(function (t) {
+      ul.appendChild(el("li", {}, [
+        el("span", { class: "t-name", text: pageTitle(t) }),
+        el("span", { class: "t-time", text: relTime(t.deletedAt) + "删除" }),
+        el("button", { class: "btn", text: "恢复", onclick: function () { restoreTrash(t.id); } }),
+        el("button", { class: "btn btn-quiet", text: "彻底删除", onclick: function () {
+          S.trash = S.trash.filter(function (x) { return x.id !== t.id; });
+          renderTrash(); renderList(); scheduleSave();
+        } }),
+      ]));
+    });
+  }
+
+  function restoreTrash(id) {
+    var t = null;
+    S.trash = S.trash.filter(function (x) {
+      if (x.id === id) { t = x; return false; }
+      return true;
+    });
+    if (!t) return;
+    var ids = {};
+    S.pages.forEach(function (p) { ids[p.id] = 1; });
+    if (ids[t.id]) t.id = newId();
+    delete t.deletedAt;
+    t.updatedAt = Date.now();
+    S.pages.push(t);
+    S.cur = t.id;
+    renderTrash(); renderList(); loadPage(); scheduleSave();
+    toast("✓ 已恢复");
+  }
+
+  function openTrash() {
+    renderTrash();
+    $("trashModal").hidden = false;
   }
 
   /* ---------- 工具栏动作 ---------- */
@@ -420,6 +545,84 @@
     }
   }
 
+  /* 回车续列表：列表项回车自动补前缀；空列表项回车退出列表 */
+  function enterContinue(e, ta) {
+    var pos = ta.selectionStart;
+    if (pos !== ta.selectionEnd) return; // 有选区交给默认行为
+    var ls = ta.value.lastIndexOf("\n", pos - 1) + 1;
+    var line = ta.value.slice(ls, pos);
+    if (pos < ta.value.length && ta.value[pos] !== "\n") return; // 光标不在行尾
+    var m;
+    if ((m = line.match(/^(\s*)(\d+)([.)])\s+(.*)$/))) {
+      e.preventDefault();
+      if (!m[4].trim()) { ta.setRangeText("", ls, pos, "end"); }
+      else ta.setRangeText("\n" + m[1] + (+m[2] + 1) + m[3] + " ", pos, pos, "end");
+      syncEditor(ta);
+      return;
+    }
+    if ((m = line.match(/^(\s*)([-*])\s+(\[[ xX]\]\s+)?(.*)$/))) {
+      e.preventDefault();
+      if (!m[4].trim()) { ta.setRangeText("", ls, pos, "end"); }
+      else ta.setRangeText("\n" + m[1] + m[2] + " " + (m[3] ? "[ ] " : ""), pos, pos, "end");
+      syncEditor(ta);
+    }
+  }
+
+  /* Tab 缩进：多行选中或列表行整块缩进，普通位置插两空格 */
+  function tabIndent(ta, outdent) {
+    var s = ta.selectionStart, e = ta.selectionEnd;
+    var ls = ta.value.lastIndexOf("\n", s - 1) + 1;
+    var le = ta.value.indexOf("\n", e);
+    if (le < 0) le = ta.value.length;
+    var multi = ta.value.slice(s, e).indexOf("\n") >= 0;
+    var block = multi || /^(\s*)([-*]\s|\d+[.)]\s|>\s)/.test(ta.value.slice(ls, s));
+    if (!block && !outdent) {
+      ta.setRangeText("  ", s, e, "end");
+      ta.selectionStart = ta.selectionEnd = s + 2;
+    } else {
+      var lines = ta.value.slice(ls, le).split("\n");
+      var delta = 0, firstDelta = 0;
+      lines = lines.map(function (l, i) {
+        var before = l.length;
+        if (outdent) l = l.replace(/^ {1,2}/, "");
+        else l = "  " + l;
+        if (i === 0) firstDelta = l.length - before;
+        delta += l.length - before;
+        return l;
+      });
+      ta.setRangeText(lines.join("\n"), ls, le, "end");
+      ta.selectionStart = s + (outdent ? Math.max(firstDelta, -2) : 2);
+      ta.selectionEnd = e + delta;
+    }
+    syncEditor(ta);
+  }
+
+  function syncEditor(ta) {
+    var p = cur(); if (!p) return;
+    p.content = ta.value;
+    p.updatedAt = Date.now();
+    S.dirty = true;
+    renderPreview();
+    refreshStat();
+    scheduleSave();
+    ta.focus();
+  }
+
+  /* 置顶当前页 */
+  function togglePin() {
+    var p = cur(); if (!p) return;
+    p.pinned = !p.pinned;
+    $("pinBtn").setAttribute("aria-pressed", String(!!p.pinned));
+    renderList();
+    scheduleSave();
+    toast(p.pinned ? "📌 已置顶，将排在列表最前" : "已取消置顶");
+  }
+
+  function refreshPinBtn() {
+    var p = cur();
+    $("pinBtn").setAttribute("aria-pressed", String(!!(p && p.pinned)));
+  }
+
   /* ---------- 保存 ---------- */
   function scheduleSave() {
     setState("输入中…", false);
@@ -440,16 +643,41 @@
     return api("/api/note/" + encodeURIComponent(S.name), {
       method: "POST",
       headers: { "content-type": "application/json" },
-      body: JSON.stringify({ pages: S.pages, pw: S.pw, readOnly: S.readOnly, imgIds: S.meta.imgIds }),
+      body: JSON.stringify({ pages: S.pages, trash: S.trash, pw: S.pw, readOnly: S.readOnly, imgIds: S.meta.imgIds }),
     }).then(function (r) {
       S.hasPassword = r.hasPassword;
       S.meta.updatedAt = Date.now();
+      S.dirty = false;
       setState("✓ 已保存 " + new Date().toLocaleTimeString("zh-CN", { hour12: false }), true);
+      notifyOthers();
+      if (S.remotePending) { S.remotePending = false; pullRemote(true); }
       return r;
     }).catch(function (e) {
       setState("保存失败", false);
       toast(e.message);
     });
+  }
+
+  /* ---------- 双标签页同步 ---------- */
+  var bc = null;
+  try { if ("BroadcastChannel" in window) bc = new BroadcastChannel("cloud-note-sync"); } catch (e) { bc = null; }
+  function notifyOthers() { if (bc) bc.postMessage({ name: S.name, ts: Date.now() }); }
+  if (bc) bc.onmessage = function (ev) {
+    if (!ev.data || ev.data.name !== S.name) return;
+    if (S.dirty) { S.remotePending = true; return; } // 本地有未保存修改，保存后再拉取
+    pullRemote(false);
+  };
+  function pullRemote(silent) {
+    api("/api/note/" + encodeURIComponent(S.name) + "?nocount=1").then(function (r) {
+      if (!r.exists || r.locked) return;
+      S.pages = r.pages || [];
+      if (!S.pages.length) S.pages.push(mkPage());
+      S.trash = r.trash || [];
+      S.meta = r.meta || S.meta;
+      if (S.pages.every(function (p) { return p.id !== S.cur; })) S.cur = S.pages[S.pages.length - 1].id;
+      renderList(); loadPage(); refreshMeta(); refreshStat();
+      if (!silent) toast("已同步其他窗口的修改");
+    }).catch(function () { /* 静默 */ });
   }
 
   /* ---------- 预览 / 统计 ---------- */
@@ -461,7 +689,17 @@
 
   function refreshStat() {
     var v = $("src").value;
-    $("stat").textContent = v.length + " 字 · " + v.split("\n").length + " 行";
+    var stat = $("stat");
+    var bytes = JSON.stringify({ pages: S.pages, trash: S.trash }).length;
+    var kb = bytes / 1024;
+    var sizeText = kb >= 1024 ? (kb / 1024).toFixed(1) + " MB" : kb.toFixed(1) + " KB";
+    stat.textContent = v.length + " 字 · " + v.split("\n").length + " 行 · 存储 " + sizeText;
+    stat.classList.toggle("warn", kb > 600 && kb <= 800);
+    stat.classList.toggle("full", kb > 800);
+    if (kb > 800 && !S.storageWarned) {
+      S.storageWarned = true;
+      toast("⚠ 存储占用已超 800KB，快满了，记得备份");
+    }
   }
 
   function updateDocMeta() {
@@ -474,43 +712,32 @@
     $("mUpdated").textContent = fmtDay(S.meta.updatedAt);
     var exp = $("mExpiry");
     exp.innerHTML = "";
+    var top = $("expiryTop");
     if (S.meta.updatedAt) {
       var d = new Date(S.meta.updatedAt + TTL_DAYS * 86400_000);
       var b = el("span", { class: "badge warn", text: d.toLocaleDateString("zh-CN") });
       exp.appendChild(b);
       exp.appendChild(document.createTextNode(" " + d.toLocaleTimeString("zh-CN", { hour12: false })));
-    } else exp.textContent = "-";
+      // 顶栏常驻过期提醒
+      var days = Math.floor((d.getTime() - Date.now()) / 86400_000);
+      top.textContent = "⏳ " + days + " 天后过期（" + d.toLocaleDateString("zh-CN") + "）";
+      top.hidden = false;
+    } else {
+      exp.textContent = "-";
+      top.hidden = true;
+    }
   }
 
   /* ---------- 分享弹窗 ---------- */
   function shareUrl() {
-    return location.origin + "/" + encodeURIComponent(S.name) + (S.readOnly ? "?view=1" : "");
+    return location.origin + "/" + encodeURIComponent(S.name);
   }
 
   function openShare() {
     $("shareUrl").value = shareUrl();
     refreshMeta();
-    refreshSeg();
     renderQR($("shareUrl").value);
     $("shareModal").hidden = false;
-  }
-
-  function refreshSeg() {
-    $("shareSeg").querySelectorAll("button").forEach(function (b, i) {
-      b.classList.toggle("on", (i === 1) === S.readOnly);
-    });
-  }
-
-  function setShareMode(ro) {
-    if (S.forceView) { toast("当前为只读视图，无法更改"); return; }
-    S.readOnly = ro;
-    refreshSeg();
-    $("shareUrl").value = shareUrl();
-    renderQR($("shareUrl").value);
-    applyRo();
-    saveNow().then(function () {
-      toast(ro ? "已切换为只读分享" : "已允许他人编辑");
-    });
   }
 
   function renderQR(text) {
@@ -628,26 +855,59 @@
     var files = Array.prototype.slice.call(e.target.files || []);
     if (!files.length) return;
     var chain = Promise.resolve();
+    var mdCount = 0, jsonCount = 0;
     files.forEach(function (f) {
       chain = chain.then(function () {
         return f.text().then(function (text) {
+          // JSON 备份恢复
+          if (/\.json$/i.test(f.name) || /^\s*\{/.test(text)) {
+            var data;
+            try { data = JSON.parse(text); } catch (err) { toast("JSON 解析失败：" + f.name); return; }
+            if (!data || !Array.isArray(data.pages)) { toast("不是有效的云便签备份文件"); return; }
+            var ids = {};
+            S.pages.forEach(function (p) { ids[p.id] = 1; });
+            data.pages.forEach(function (p) {
+              if (!p || typeof p.content !== "string") return;
+              if (ids[p.id]) p.id = newId();
+              ids[p.id] = 1;
+              S.pages.push({
+                id: p.id || newId(),
+                title: typeof p.title === "string" ? p.title : "",
+                content: p.content,
+                createdAt: +p.createdAt || Date.now(),
+                updatedAt: +p.updatedAt || Date.now(),
+                pinned: !!p.pinned,
+              });
+              jsonCount++;
+            });
+            if (Array.isArray(data.trash) && data.trash.length) {
+              S.trash = S.trash.concat(data.trash.filter(function (t) { return t && typeof t.content === "string"; }));
+            }
+            return;
+          }
+          // Markdown / 文本导入
           var p = mkPage();
           p.title = f.name.replace(/\.(md|markdown|txt)$/i, "").slice(0, 60);
           p.content = text.slice(0, 500000);
           S.pages.push(p);
           S.cur = p.id;
+          mdCount++;
         });
       });
     });
     chain.then(function () {
-      renderList(); loadPage(); scheduleSave();
-      toast("已导入 " + files.length + " 个文件");
+      S.dirty = true;
+      renderList(); loadPage(); refreshStat(); scheduleSave();
+      var parts = [];
+      if (mdCount) parts.push(mdCount + " 个 .md 文件");
+      if (jsonCount) parts.push("JSON 恢复 " + jsonCount + " 个页面");
+      if (parts.length) toast("✓ 已导入 " + parts.join("，"));
     });
     e.target.value = "";
   }
 
-  function download(filename, text) {
-    var a = el("a", { href: URL.createObjectURL(new Blob([text], { type: "text/markdown" })), download: filename });
+  function download(filename, text, mime) {
+    var a = el("a", { href: URL.createObjectURL(new Blob([text], { type: mime || "text/markdown" })), download: filename });
     document.body.appendChild(a); a.click(); a.remove();
   }
 
@@ -663,6 +923,20 @@
       .join("\n\n---\n\n");
     download(S.name + "-备份-" + new Date().toISOString().slice(0, 10) + ".md", body);
     toast("已合成 " + S.pages.length + " 个页面");
+  }
+
+  function backupJson() {
+    var payload = {
+      app: "cloud-note",
+      version: 1,
+      name: S.name,
+      exportedAt: new Date().toISOString(),
+      pages: S.pages,
+      trash: S.trash,
+    };
+    download(S.name + "-备份-" + new Date().toISOString().slice(0, 10) + ".json",
+      JSON.stringify(payload, null, 2), "application/json");
+    toast("✓ JSON 备份已下载（可完整还原）");
   }
 
   function copyText(text) {

@@ -56,9 +56,28 @@ function normalizePages(pages) {
       content: p.content,
       createdAt: +p.createdAt || now,
       updatedAt: +p.updatedAt || now,
+      pinned: !!p.pinned,
     });
   }
   return out;
+}
+
+// 回收站：[{id,title,content,createdAt,updatedAt,deletedAt}]
+function normalizeTrash(trash) {
+  if (!Array.isArray(trash)) return [];
+  const now = Date.now();
+  return trash
+    .filter((t) => t && typeof t.content === "string" && t.content.length <= MAX_CONTENT)
+    .filter((t) => now - (+t.deletedAt || now) < TTL * 1000) // 超 30 天的自动清除
+    .slice(0, 200)
+    .map((t) => ({
+      id: typeof t.id === "string" && t.id ? t.id.slice(0, 12) : newId(),
+      title: typeof t.title === "string" ? t.title.slice(0, 120) : "",
+      content: t.content,
+      createdAt: +t.createdAt || now,
+      updatedAt: +t.updatedAt || now,
+      deletedAt: +t.deletedAt || now,
+    }));
 }
 
 // 旧版数据迁移：{content} => 单页笔记本
@@ -119,6 +138,7 @@ export async function onRequestGet(context) {
       hasPassword: !!record.pwHash,
       readOnly: !!record.readOnly,
       pages: record.pages,
+      trash: normalizeTrash(record.trash),
       meta: { createdAt: record.createdAt, updatedAt: record.updatedAt, imgIds: record.imgIds || [], ...(reads !== undefined ? { reads } : {}) },
     });
   }
@@ -178,6 +198,7 @@ export async function onRequestPost(context) {
 
     const next = {
       pages,
+      trash: normalizeTrash(body.trash || record?.trash),
       createdAt: record?.createdAt || now,
       updatedAt: now,
       pwHash,

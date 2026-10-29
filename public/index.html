@@ -53,6 +53,7 @@
       <button id="unlockGo" class="btn btn-primary" type="button">解锁</button>
     </div>
     <div class="err" id="unlockErr"></div>
+    <p class="back-row"><button class="btn" id="unlockHome" type="button">← 返回首页</button></p>
   </div>
 </section>
 
@@ -74,9 +75,11 @@
       <ul class="nb-notes" id="pageList"></ul>
       <p class="nb-empty" id="pageEmpty" hidden>还没有匹配的页面</p>
       <div class="nb-side-foot">
-        <button class="nb-ghost" id="importBtn" type="button">导入 .md</button>
-        <button class="nb-ghost" id="backupAll" type="button">备份全部</button>
-        <input id="importFile" type="file" accept=".md,.markdown,.txt" multiple hidden>
+        <button class="nb-ghost" id="importBtn" type="button">导入</button>
+        <button class="nb-ghost" id="backupAll" type="button">备份 .md</button>
+        <button class="nb-ghost" id="backupJson" type="button">备份 JSON</button>
+        <button class="nb-ghost" id="trashBtn" type="button">回收站<span class="trash-badge" id="trashCount" hidden>0</span></button>
+        <input id="importFile" type="file" accept=".md,.markdown,.txt,.json" multiple hidden>
       </div>
     </aside>
 
@@ -89,8 +92,10 @@
           <button class="btn btn-prev" id="prevToggle" type="button" title="收起 / 展开右侧实时预览" aria-pressed="true">预览</button>
         </div>
         <input id="title" class="nb-title" placeholder="无标题页面" aria-label="页面标题" autocomplete="off" spellcheck="false">
+        <span class="nb-expiry" id="expiryTop" hidden></span>
         <span class="nb-state" id="state">已加载</span>
         <div class="nb-actions">
+          <button class="btn" id="pinBtn" type="button" title="置顶 / 取消置顶当前页面" aria-pressed="false">📌 置顶</button>
           <button class="btn" id="shareBtn" type="button" title="分享与设置">
             <svg viewBox="0 0 24 24" width="15" height="15" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M3 3h7v7H3V3Zm2 2v3h3V5H5Zm9-2h7v7h-7V3Zm2 2v3h3V5h-3ZM3 14h7v7H3v-7Zm2 2v3h3v-3H5Zm9-2h3v3h-3v-3Zm5 0h2v2h-2v-2Zm-5 5h2v2h-2v-2Zm3 0h4v2h-4v-2Zm2-3h2v2h-2v-2Z"/></svg>
             分享
@@ -157,12 +162,6 @@
         <button class="btn btn-icon" id="shareClose" type="button" title="关闭">✕</button>
       </div>
 
-      <p class="modal-label">他人可编辑</p>
-      <div class="seg" id="shareSeg">
-        <button type="button" class="on">编辑</button>
-        <button type="button">只读</button>
-      </div>
-
       <p class="modal-label">分享链接（手机扫码打开）</p>
       <div class="share-link">
         <input id="shareUrl" type="text" readonly>
@@ -186,6 +185,23 @@
 
       <div class="modal-foot">
         <button class="btn" id="shareDone" type="button">完成</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ============ 回收站弹窗 ============ -->
+  <div class="modal" id="trashModal" hidden>
+    <div class="modal-card" role="dialog" aria-modal="true" aria-labelledby="trashTitle">
+      <div class="modal-head">
+        <h2 id="trashTitle">回收站</h2>
+        <button class="btn btn-icon" id="trashClose" type="button" title="关闭">✕</button>
+      </div>
+      <p class="modal-label">删除的页面在这里保留 30 天，之后自动清除</p>
+      <ul class="trash-list" id="trashList"></ul>
+      <p class="nb-empty" id="trashEmpty" hidden>回收站是空的</p>
+      <div class="modal-foot">
+        <button class="btn btn-quiet" id="trashClear" type="button">清空回收站</button>
+        <button class="btn" id="trashDone" type="button">完成</button>
       </div>
     </div>
   </div>
