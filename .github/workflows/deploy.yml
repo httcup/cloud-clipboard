@@ -23,13 +23,14 @@ jobs:
           CF_REFRESH_TOKEN: ${{ secrets.CLOUDFLARE_REFRESH_TOKEN }}
           CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
         run: |
-          ACCESS_TOKEN=$(curl -s -X POST "https://dash.cloudflare.com/oauth2/token" \
+          RESP=$(curl -s -X POST "https://dash.cloudflare.com/oauth2/token" \
             -H "Content-Type: application/x-www-form-urlencoded" \
             --data-urlencode "grant_type=refresh_token" \
             --data-urlencode "refresh_token=$CF_REFRESH_TOKEN" \
             --data-urlencode "client_id=54d11594-84e4-41aa-b438-e81b8fa78ee7" \
-            --data-urlencode "redirect_uri=https://dash.cloudflare.com/oauth2/auth" \
-            | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+            --data-urlencode "redirect_uri=https://dash.cloudflare.com/oauth2/auth")
+          echo "$RESP" | sed 's/cfo[a-z]*_[A-Za-z0-9._-]*/<脱敏>/g'
+          ACCESS_TOKEN=$(echo "$RESP" | python3 -c "import sys,json; d=json.load(sys.stdin); print(d.get('access_token',''))")
           if [ -z "$ACCESS_TOKEN" ]; then echo "令牌交换失败"; exit 1; fi
           export CLOUDFLARE_API_TOKEN="$ACCESS_TOKEN"
           npx wrangler pages deploy public --project-name cloud-clipboard --branch main --commit-dirty=true
