@@ -1,0 +1,35 @@
+name: Deploy to Cloudflare Pages
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: 安装 wrangler
+        run: npm install wrangler --no-save --no-audit --no-fund
+
+      - name: 换取访问令牌并部署
+        env:
+          CF_REFRESH_TOKEN: ${{ secrets.CLOUDFLARE_REFRESH_TOKEN }}
+          CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
+        run: |
+          ACCESS_TOKEN=$(curl -s -X POST "https://dash.cloudflare.com/oauth2/token" \
+            -H "Content-Type: application/x-www-form-urlencoded" \
+            --data-urlencode "grant_type=refresh_token" \
+            --data-urlencode "refresh_token=$CF_REFRESH_TOKEN" \
+            --data-urlencode "client_id=54d11594-84e4-41aa-b438-e81b8fa78ee7" \
+            --data-urlencode "redirect_uri=https://dash.cloudflare.com/oauth2/auth" \
+            | python3 -c "import sys,json; print(json.load(sys.stdin)['access_token'])")
+          if [ -z "$ACCESS_TOKEN" ]; then echo "令牌交换失败"; exit 1; fi
+          export CLOUDFLARE_API_TOKEN="$ACCESS_TOKEN"
+          npx wrangler pages deploy public --project-name cloud-clipboard --branch main --commit-dirty=true
