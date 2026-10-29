@@ -214,6 +214,9 @@
   function wireNotebook() {
     document.title = S.name + " · 云便签";
     $("nbView").hidden = false;
+    $("homeView").hidden = true;
+    $("unlockView").hidden = true;
+    $("unlockPw").value = "";
 
     // 侧栏开关
     $("sideToggle").addEventListener("click", function () {
