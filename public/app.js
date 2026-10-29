@@ -213,7 +213,7 @@
       "- [ ] 记待办，导出 .md 丢进仓库",
       "- [ ] 写草稿，写完再粘到别处",
       "- [x] 试试顶栏的「下载 .md」",
-      "- [ ] 手机扫码分享给朋友（顶栏「分享」）",
+      "- [ ] 手机扫码分享给朋友（顶栏「分享密码」）",
       "- [ ] 直接粘贴截图或拖拽图片进来",
       "",
       "## 语法速查",
@@ -947,9 +947,17 @@
     document.body.appendChild(a); a.click(); a.remove();
   }
 
+  // 文件名时间戳：2026-10-29-11点28分（本地时间，补零）
+  function fileStamp() {
+    var d = new Date();
+    function z(n) { return (n < 10 ? "0" : "") + n; }
+    return d.getFullYear() + "-" + z(d.getMonth() + 1) + "-" + z(d.getDate()) +
+      "-" + z(d.getHours()) + "点" + z(d.getMinutes()) + "分";
+  }
+
   function downloadPage() {
     var p = cur(); if (!p) return;
-    download(pageTitle(p).replace(/[\\/:*?"<>|]/g, "_") + ".md", p.content);
+    download(pageTitle(p).replace(/[\\/:*?"<>|]/g, "_") + "-" + fileStamp() + ".md", p.content);
   }
 
   function backupAll() {
@@ -957,7 +965,7 @@
       .sort(function (a, b) { return a.createdAt - b.createdAt; })
       .map(function (p) { return "# " + pageTitle(p) + "\n\n" + p.content; })
       .join("\n\n---\n\n");
-    download(S.name + "-备份-" + new Date().toISOString().slice(0, 10) + ".md", body);
+    download(S.name + "-备份-" + fileStamp() + ".md", body);
     toast("已合成 " + S.pages.length + " 个页面");
   }
 
@@ -970,7 +978,7 @@
       pages: S.pages,
       trash: S.trash,
     };
-    download(S.name + "-备份-" + new Date().toISOString().slice(0, 10) + ".json",
+    download(S.name + "-备份-" + fileStamp() + ".json",
       JSON.stringify(payload, null, 2), "application/json");
     toast("✓ JSON 备份已下载（可完整还原）");
   }
