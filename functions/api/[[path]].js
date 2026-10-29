@@ -97,6 +97,46 @@ async function getNotebook(env, name) {
   return migrate(await env.NOTES_KV.get("n:" + name, "json"));
 }
 
+// ---- 违禁词过滤 ----
+// 词库存于 KV 键 "cfg:banned"：纯文本，一行一个词（也兼容逗号/、分隔）。
+// 在 Cloudflare 后台 KV 中随时编辑该键即可生效（本模块缓存 60 秒）。
+let bannedCache = { list: null, ts: 0 };
+async function getBannedWords(env) {
+  const now = Date.now();
+  if (bannedCache.list && now - bannedCache.ts < 60_000) return bannedCache.list;
+  let list = [];
+  try {
+    const raw = await env.NOTES_KV.get("cfg:banned");
+    if (raw) {
+      list = raw
+        .split(/[\n,，、]+/)
+        .map((w) => w.trim())
+        .filter(Boolean);
+    }
+  } catch { /* 词库读取失败时不拦截 */ }
+  bannedCache = { list, ts: now };
+  return list;
+}
+
+function findBanned(text, words) {
+  if (!words.length || !text) return null;
+  for (const w of words) {
+    if (text.toLowerCase().includes(w.toLowerCase())) return w;
+  }
+  return null;
+}
+
+// 返回命中的违禁词（未命中返回 null）
+async function checkBanned(env, pages) {
+  const words = await getBannedWords(env);
+  if (!words.length) return null;
+  for (const p of pages) {
+    const hit = findBanned((p.title || "") + "\n" + (p.content || ""), words);
+    if (hit) return hit;
+  }
+  return null;
+}
+
 async function bumpReads(env, name) {
   const n = (await env.NOTES_KV.get("r:" + name)) || "0";
   const next = parseInt(n, 10) || 0;
@@ -188,6 +228,10 @@ export async function onRequestPost(context) {
     const pages = normalizePages(body.pages);
     if (pages === null) return json({ error: "pages 数据不合法" }, 400);
     if (pages.length === 0) return json({ error: "至少保留一个页面" }, 400);
+
+    // 违禁词校验（词库：KV 键 cfg:banned）
+    const bannedHit = await checkBanned(env, pages);
+    if (bannedHit) return json({ error: "保存失败：内容包含违禁词「" + bannedHit + "」，请修改后重试" }, 400);
 
     const now = Date.now();
     const pwHash = body.password
