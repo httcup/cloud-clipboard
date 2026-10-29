@@ -204,6 +204,10 @@
       "",
       "这是一个**免登录的云端 Markdown 笔记本**。左边写，右边就是最终的样子；每敲一句都会自动保存到云端，关掉页面再回来还在，换台设备访问同一网址也还在。",
       "",
+      "严禁利用云便签存储或传播任何违法违规内容（如涉黄、涉赌、涉毒、政治敏感等）。平台将记录相关违规使用信息，违规内容一经发现即删除，并依法配合调查。",
+      "",
+      "系统会自动拦截存在违禁词和敏感词的内容，如有会被误伤的敏感词，可点击页面底部工具进行编码处理：[https://139t.cn/base64/](https://139t.cn/base64/)",
+      "",
       "## 可以这么用",
       "",
       "- [ ] 记待办，导出 .md 丢进仓库",
@@ -324,6 +328,22 @@
       if (e.key === "Enter" && !e.shiftKey && !e.metaKey && !e.ctrlKey && !e.altKey) { enterContinue(e, src); }
       if (e.key === "Tab") { e.preventDefault(); tabIndent(src, e.shiftKey); }
     });
+
+    // 滚动跟随：编辑区 ↔ 预览 双向比例同步（rAF 加锁防循环）
+    var scrollSyncing = false;
+    function followScroll(from, to) {
+      if (scrollSyncing || !S.prev) return;
+      scrollSyncing = true;
+      requestAnimationFrame(function () {
+        var maxF = from.scrollHeight - from.clientHeight;
+        if (maxF > 0) {
+          to.scrollTop = (from.scrollTop / maxF) * (to.scrollHeight - to.clientHeight);
+        }
+        scrollSyncing = false;
+      });
+    }
+    src.addEventListener("scroll", function () { followScroll(src, $("prev")); });
+    $("prev").addEventListener("scroll", function () { followScroll($("prev"), src); });
 
     // 工具栏
     document.querySelectorAll("#toolbar [data-md]").forEach(function (b) {
