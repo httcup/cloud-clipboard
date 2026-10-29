@@ -164,7 +164,6 @@
   function showHome() {
     document.title = "云便签 · 随手记同步到云";
     $("homeView").hidden = false;
-    var f = $("siteFooter"); if (f) f.hidden = false;
     var input = $("homeName"), err = $("homeErr");
     function go() {
       var name = input.value.trim();
@@ -179,7 +178,6 @@
   function showUnlock(name) {
     document.title = name + " · 云便签";
     $("unlockView").hidden = false;
-    var f = $("siteFooter"); if (f) f.hidden = false;
     $("unlockName").textContent = name;
     var pw = $("unlockPw"), err = $("unlockErr");
     function go() {
@@ -269,7 +267,6 @@
     $("nbView").hidden = false;
     $("homeView").hidden = true;
     $("unlockView").hidden = true;
-    var f = $("siteFooter"); if (f) f.hidden = true;
     $("unlockPw").value = "";
 
     // 侧栏开关
