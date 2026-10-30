@@ -329,10 +329,12 @@
       if (e.key === "Tab") { e.preventDefault(); tabIndent(src, e.shiftKey); }
     });
 
-    // 滚动跟随：编辑区 ↔ 预览 双向比例同步（rAF 加锁防循环）
+    // 滚动跟随：编辑区(#src 自身滚动) ↔ 预览(.nb-read 外层容器滚动)
+    // 注意预览的滚动条在 .nb-read 上而非 #prev，绑定错元素会导致预览纹丝不动
     var scrollSyncing = false;
+    var readPane = document.querySelector(".nb-read");
     function followScroll(from, to) {
-      if (scrollSyncing || !S.prev) return;
+      if (scrollSyncing || !S.prev || !readPane) return;
       scrollSyncing = true;
       requestAnimationFrame(function () {
         var maxF = from.scrollHeight - from.clientHeight;
@@ -342,8 +344,26 @@
         scrollSyncing = false;
       });
     }
-    src.addEventListener("scroll", function () { followScroll(src, $("prev")); });
-    $("prev").addEventListener("scroll", function () { followScroll($("prev"), src); });
+    src.addEventListener("scroll", function () { followScroll(src, readPane); });
+    readPane.addEventListener("scroll", function () { followScroll(readPane, src); });
+
+    // 光标定位跟随：点击或用方向键移动光标时，预览跟随到对应内容位置
+    function followCaret() {
+      if (!S.prev || !readPane) return;
+      var upto = src.value.slice(0, src.selectionStart);
+      var line = (upto.match(/\n/g) || []).length;
+      var total = (src.value.match(/\n/g) || []).length + 1;
+      var maxF = src.scrollHeight - src.clientHeight;
+      if (maxF > 0 && total > 1) {
+        var ratio = Math.min(1, line / (total - 1));
+        readPane.scrollTop = ratio * (readPane.scrollHeight - readPane.clientHeight);
+      }
+    }
+    src.addEventListener("click", followCaret);
+    src.addEventListener("keyup", function (e) {
+      var k = e.key;
+      if (k === "ArrowUp" || k === "ArrowDown" || k === "PageUp" || k === "PageDown" || k === "Home" || k === "End") followCaret();
+    });
 
     // 工具栏
     document.querySelectorAll("#toolbar [data-md]").forEach(function (b) {
