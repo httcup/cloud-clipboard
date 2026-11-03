@@ -201,11 +201,12 @@ input:focus { border-color: var(--accent); }
 .nb-title {
   flex: 1 1 10rem; min-width: 0;
   padding: 0.32rem 0.45rem;
-  border: 1px solid transparent; border-radius: 7px;
-  background: none; color: var(--text);
+  border: 1px solid var(--border); border-radius: 7px;
+  background: var(--surface-2); color: var(--text);
   font: inherit; font-size: 1rem; font-weight: 650; letter-spacing: -0.01em;
 }
-.nb-title:hover { border-color: var(--border); }
+.nb-title::placeholder { color: var(--text-dim); font-weight: 500; }
+.nb-title:hover { border-color: var(--accent); }
 .nb-title:focus { border-color: var(--accent); outline: none; background: var(--surface); }
 .nb-state { flex: none; color: var(--text-dim); font-size: 0.74rem; font-variant-numeric: tabular-nums; }
 .nb-state.saved { color: #199d55; }
