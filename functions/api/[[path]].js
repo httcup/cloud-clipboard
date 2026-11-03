@@ -7,6 +7,9 @@
 //   r:<name>  => 阅读次数(number)
 
 const TTL = 30 * 24 * 3600; // 30 天未更新自动清理
+// 永久有效的笔记本名单：这些笔记本及其图片、阅读计数不设 TTL，永不自动清理
+const PERMANENT = new Set(["xhxh"]);
+function isPermanent(name) { return PERMANENT.has(name); }
 const MAX_PAGES = 100;
 const MAX_CONTENT = 500_000;   // 单页字符上限
 const MAX_IMG = 8 * 1024 * 1024; // 单图 8MB
@@ -140,7 +143,8 @@ async function checkBanned(env, pages) {
 async function bumpReads(env, name) {
   const n = (await env.NOTES_KV.get("r:" + name)) || "0";
   const next = parseInt(n, 10) || 0;
-  await env.NOTES_KV.put("r:" + name, String(next + 1), { expirationTtl: TTL });
+  const opts = isPermanent(name) ? {} : { expirationTtl: TTL };
+  await env.NOTES_KV.put("r:" + name, String(next + 1), opts);
   return next + 1;
 }
 
@@ -210,7 +214,9 @@ export async function onRequestPost(context) {
     for (let i = 0; i < bytes.length; i += CHUNK) {
       binary += String.fromCharCode.apply(null, bytes.subarray(i, i + CHUNK));
     }
-    await env.NOTES_KV.put("i:" + id, JSON.stringify({ type, data: btoa(binary), createdAt: Date.now() }), { expirationTtl: TTL });
+    // 永久笔记本的图片不设 TTL（KV 不传 expirationTtl 即永不删除）
+    const imgOpts = isPermanent(name) ? {} : { expirationTtl: TTL };
+    await env.NOTES_KV.put("i:" + id, JSON.stringify({ type, data: btoa(binary), createdAt: Date.now() }), imgOpts);
     return json({ ok: true, id, url: `/api/img/${id}` });
   }
 
@@ -249,7 +255,9 @@ export async function onRequestPost(context) {
       readOnly: !!body.readOnly,
       imgIds: Array.isArray(body.imgIds) ? body.imgIds.slice(0, 500).map(String) : record?.imgIds || [],
     };
-    await env.NOTES_KV.put("n:" + name, JSON.stringify(next), { expirationTtl: TTL });
+    // 白名单笔记本永久有效（不传 expirationTtl，KV 永不删除）
+    const putOpts = isPermanent(name) ? {} : { expirationTtl: TTL };
+    await env.NOTES_KV.put("n:" + name, JSON.stringify(next), putOpts);
     return json({ ok: true, hasPassword: !!pwHash, readOnly: next.readOnly });
   }
   return json({ error: "未知接口" }, 404);
