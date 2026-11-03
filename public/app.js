@@ -234,11 +234,16 @@
 
     // 预览开关（桌面）—— 没选过时默认关闭；手动切换后记住在本机
     try { S.prev = localStorage.getItem("cn-prev") === "1"; } catch (e) { S.prev = false; }
+    var syncPrevBtn = function () {
+      $("prevToggle").textContent = S.prev ? "关闭预览" : "开启预览";
+    };
     $("prevToggle").setAttribute("aria-pressed", String(S.prev));
+    syncPrevBtn();
     $("split").classList.toggle("prev-hidden", !S.prev);
     $("prevToggle").addEventListener("click", function () {
       S.prev = !S.prev;
       this.setAttribute("aria-pressed", String(S.prev));
+      syncPrevBtn();
       $("split").classList.toggle("prev-hidden", !S.prev);
       try { localStorage.setItem("cn-prev", S.prev ? "1" : "0"); } catch (e) { /* 隐身模式等 */ }
     });

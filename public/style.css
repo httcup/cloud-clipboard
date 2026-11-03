@@ -214,9 +214,9 @@ input:focus { border-color: var(--accent); }
 
 .nb-bar-toggles { display: flex; align-items: center; gap: 0.3rem; flex: none; }
 .nb-bar-toggles .btn-icon[aria-pressed="false"] { border-color: transparent; background: none; opacity: 0.62; }
-.btn-prev { --nb-green: #199d55; padding-inline: 0.6rem; font-size: 0.78rem; font-weight: 650; border-color: var(--nb-green); background: var(--nb-green); color: #fff; }
-.btn-prev:hover { border-color: var(--nb-green); background: var(--nb-green); color: #fff; filter: brightness(1.07); }
-.btn-prev[aria-pressed="false"] { background: none; color: var(--nb-green); opacity: .85; text-decoration: line-through; }
+.btn-prev { padding-inline: 0.6rem; font-size: 0.78rem; font-weight: 650; border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
+.btn-prev:hover { border-color: var(--accent); background: var(--accent); color: var(--accent-text); filter: brightness(1.07); }
+.btn-prev[aria-pressed="false"] { background: none; color: var(--accent); opacity: .85; text-decoration: line-through; }
 
 .nb-views { display: none; gap: 0.3rem; padding: 0.4rem 0.85rem 0; }
 .nb-view {
