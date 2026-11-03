@@ -216,7 +216,7 @@ input:focus { border-color: var(--accent); }
 .nb-bar-toggles .btn-icon[aria-pressed="false"] { border-color: transparent; background: none; opacity: 0.62; }
 .btn-prev { padding-inline: 0.6rem; font-size: 0.78rem; font-weight: 650; border-color: var(--accent); background: var(--accent); color: var(--accent-text); }
 .btn-prev:hover { border-color: var(--accent); background: var(--accent); color: var(--accent-text); filter: brightness(1.07); }
-.btn-prev[aria-pressed="false"] { background: none; color: var(--accent); opacity: .85; text-decoration: line-through; }
+.btn-prev[aria-pressed="false"] { border-color: var(--accent); background: var(--accent); color: var(--accent-text); opacity: 1; text-decoration: none; }
 
 .nb-views { display: none; gap: 0.3rem; padding: 0.4rem 0.85rem 0; }
 .nb-view {
