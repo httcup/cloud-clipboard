@@ -8,7 +8,7 @@
 
 const TTL = 30 * 24 * 3600; // 30 天未更新自动清理
 // 永久有效的笔记本名单：这些笔记本及其图片、阅读计数不设 TTL，永不自动清理
-const PERMANENT = new Set(["xhxh"]);
+const PERMANENT = new Set(["xhxh", "8"]);
 function isPermanent(name) { return PERMANENT.has(name); }
 const MAX_PAGES = 100;
 const MAX_CONTENT = 500_000;   // 单页字符上限
